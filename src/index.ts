@@ -43,9 +43,26 @@ function getInfo(request: CfRequest): IpInfo | null {
 	};
 }
 
+async function respondHeadless(info: IpInfo): Promise<Response> {
+	const headers = new Headers();
+	headers.set('Content-Type', 'application/json');
+	headers.set('Cache-Control', 'public, max-age=0, s-maxage=30');
+
+	return new Response(JSON.stringify(info, null, 2), {
+		headers,
+	});
+}
+
 export default {
 	async fetch(request, env, ctx): Promise<Response> {
 		const info = getInfo(request);
-		return new Response(JSON.stringify(info, null, 2))
+		if (!info) {
+			return new Response('Cloudflare information is not available.', {
+				status: 400,
+				statusText: 'Bad Request',
+			});
+		}
+
+		return respondHeadless(info);
 	},
 } satisfies ExportedHandler<Env>;
