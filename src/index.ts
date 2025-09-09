@@ -1,3 +1,4 @@
+// TODO: Infer browser information from User-Agent
 interface IpInfo {
 	ip: string;
 	continent: string | null;
@@ -43,7 +44,9 @@ function getInfo(request: CfRequest): IpInfo | null {
 	};
 }
 
-async function respondHeadless(info: IpInfo): Promise<Response> {
+type ResponseHandler = (info: IpInfo) => Promise<Response>;
+
+const respondHeadless: ResponseHandler = async (info: IpInfo) => {
 	const headers = new Headers();
 	headers.set('Content-Type', 'application/json');
 	headers.set('Cache-Control', 'public, max-age=0, s-maxage=30');
@@ -51,6 +54,10 @@ async function respondHeadless(info: IpInfo): Promise<Response> {
 	return new Response(JSON.stringify(info, null, 2), {
 		headers,
 	});
+}
+
+const respondHtml: ResponseHandler = async (info: IpInfo) => {
+	return new Response('test')
 }
 
 export default {
@@ -63,6 +70,17 @@ export default {
 			});
 		}
 
-		return respondHeadless(info);
+		// Rudimentary content negotiation
+		const handlersByMimeType: Record<string, ResponseHandler> = {
+			'text/html': respondHtml,
+			'application/xhtml+xml': respondHtml,
+			'application/json': respondHeadless,
+			'text/plain': respondHeadless,
+		}
+		const accept = request.headers.get('accept') || '';
+		console.log({ accept })
+		const handler = Object.entries(handlersByMimeType).find(([mime]) => accept.toLowerCase().includes(mime.toLowerCase()))?.[1] ?? respondHeadless;
+
+		return handler(info);
 	},
 } satisfies ExportedHandler<Env>;
