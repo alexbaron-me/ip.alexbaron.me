@@ -42,7 +42,7 @@ function getInfo(request: CfRequest): IpInfo | null {
 		postalCode: cf.postalCode || null,
 		city: cf.city || null,
 		organization: cf.asOrganization || null,
-		botScore: cf.botManagement.score || null,
+		botScore: cf.botManagement?.score || null,
 		requestHeaders: headers,
 	};
 }
