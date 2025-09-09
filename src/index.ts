@@ -1,3 +1,6 @@
+import { htmlTemplate } from './template';
+import { cssStyles } from './styles';
+
 // TODO: Infer browser information from User-Agent
 interface IpInfo {
 	ip: string;
@@ -57,7 +60,53 @@ const respondHeadless: ResponseHandler = async (info: IpInfo) => {
 }
 
 const respondHtml: ResponseHandler = async (info: IpInfo) => {
-	return new Response('test')
+	// Format location string
+	const locationParts = [info.city, info.region, info.country].filter(Boolean);
+	const location = locationParts.length > 0 ? locationParts.join(', ') : '<span class="null-value">Not available</span>';
+
+	// Format coordinates
+	const coordinates = info.latitude && info.longitute
+		? `${info.latitude}, ${info.longitute}`
+		: '<span class="null-value">Not available</span>';
+
+	// Format headers HTML
+	const headersHtml = Object.entries(info.requestHeaders)
+		.sort(([a], [b]) => a.localeCompare(b))
+		.map(([key, value]) => `
+			<div class="header-item">
+				<div class="header-name">${key}:</div>
+				<div class="header-value">${value}</div>
+			</div>
+		`).join('');
+
+	// Create replacement dictionary
+	const replacements: Record<string, string> = {
+		'{{CSS_CONTENT}}': cssStyles,
+		'{{IP}}': info.ip,
+		'{{LOCATION}}': location,
+		'{{CONTINENT}}': info.continent || '<span class="null-value">Not available</span>',
+		'{{TIMEZONE}}': info.timezone || '<span class="null-value">Not available</span>',
+		'{{POSTAL_CODE}}': info.postalCode || '<span class="null-value">Not available</span>',
+		'{{COORDINATES}}': coordinates,
+		'{{ASN}}': info.asn?.toString() || '<span class="null-value">Not available</span>',
+		'{{ORGANIZATION}}': info.organization || '<span class="null-value">Not available</span>',
+		'{{BOT_SCORE}}': info.botScore !== null ? info.botScore.toString() : '<span class="null-value">Not available</span>',
+		'{{HEADER_COUNT}}': Object.keys(info.requestHeaders).length.toString(),
+		'{{HEADERS_HTML}}': headersHtml,
+	};
+
+	// Apply all replacements
+	const html = Object.entries(replacements).reduce(
+		(template, [placeholder, value]) => template.replace(placeholder, value),
+		htmlTemplate
+	);
+
+	return new Response(html, {
+		headers: {
+			'Content-Type': 'text/html; charset=utf-8',
+			'Cache-Control': 'public, max-age=0, s-maxage=30',
+		},
+	});
 }
 
 export default {
